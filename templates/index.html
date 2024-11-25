@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка баланса</title>
+</head>
+<body>
+    <h1>Проверка баланса</h1>
+    <div class="section">
+        <h2>Проверка баланса счета и карт</h2>
+        <button onclick="checkBalance()">Проверить баланс</button>
+        <div id="loading" style="display: none;">Загрузка...</div>
+        <div id="balance" style="display: none;"></div>
+        <div id="error" style="display: none;"></div>
+    </div>
+    <footer>
+        <p class="footer"> &copy; VTB API Hackathon 2024 </p>
+    </footer>
+    <script>
+    async function checkBalance() {
+        const token = localStorage.getItem('token');
+        const loadingElement = document.getElementById("loading");
+        const errorElement = document.getElementById("error");
+        const balanceElement = document.getElementById("balance");
+
+        if (loadingElement) {
+            loadingElement.style.display = "block";
+        }
+
+        if (errorElement) {
+            errorElement.style.display = "none";
+        }
+
+        if (balanceElement) {
+            balanceElement.style.display = "none";
+        }
+
+        try {
+            const response = await fetch("http://localhost:8080/account/balance", {
+                method: "GET",
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.text(); // Получаем текст, чтобы увидеть, что именно вернул сервер
+                console.error("Ошибка запроса:", errorData);
+                if (errorElement) {
+                    errorElement.innerText = errorData || "Ошибка запроса. Попробуйте снова.";
+                    errorElement.style.display = "block";
+                }
+                return;
+            }
+
+            const data = await response.json();
+            console.log("Ответ от сервера:", data); // Логируем полученные данные для отладки
+
+            let balanceText = "";
+
+            if (data.accounts && data.accounts.length > 0) {
+                const account = data.accounts[0];
+                const balance = account.balance;
+                const amount = balance?.amount || 0;
+                const currencyCode = balance?.currency?.code || '';
+                balanceText += `Баланс счета: ${amount} ${currencyCode || ''}\n`;
+            }
+
+            if (data.cards && data.cards.length > 0) {
+                let cardsOutput = 'Баланс карт:\n';
+                data.cards.forEach((card) => {
+                    const cardBalance = card.balance;
+                    const cardAmount = cardBalance?.amount || 0;
+                    const cardCurrencyCode = cardBalance?.currency?.code || '';
+                    cardsOutput += `ID карты: ${card.publicId}, Баланс: ${cardAmount} ${cardCurrencyCode}\n`;
+                });
+                balanceText += cardsOutput;
+            }
+
+            if (balanceText) {
+                if (balanceElement) {
+                    balanceElement.innerText = balanceText;
+                    balanceElement.style.display = "block";
+                }
+            } else {
+                if (errorElement) {
+                    errorElement.innerText = "Нет доступных данных о счетах или картах.";
+                    errorElement.style.display = "block";
+                }
+            }
+
+        } catch (error) {
+            console.error("Ошибка сети или обработки:", error);
+            if (errorElement) {
+                errorElement.innerText = "Ошибка сети или ответа сервера.";
+                errorElement.style.display = "block";
+            }
+        } finally {
+            if (loadingElement) {
+                loadingElement.style.display = "none";
+            }
+        }
+    }
+    </script>
+</body>
+</html>
+
